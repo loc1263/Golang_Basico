@@ -1,0 +1,9 @@
+# Guardar todos los archivos de texto con finales de línea LF (estilo Unix),
+# también en Windows. gofmt usa LF, y así el CI en Linux ve lo mismo que
+# el editor local.
+* text=auto eol=lf
+
+# Código generado: se colapsa en los diffs de GitHub
+43-grpc/catalogopb/*.pb.go linguist-generated=true
+48-go-generate/*_string.go linguist-generated=true
+48-go-generate/paises_gen.go linguist-generated=true

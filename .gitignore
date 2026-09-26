@@ -1,0 +1,34 @@
+# Binarios compilados (go build)
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+/dist/
+
+# Tests y cobertura
+*.test
+*.out
+coverage.*
+
+# Archivos que generan los ejemplos al ejecutarse
+*.prof
+*.db
+49-observabilidad/trazas.json
+46-profiling-benchmarks/testdata/fuzz/
+52-ci-cd/testdata/fuzz/
+
+# Configuración local con secretos (el app.env del tema 36 es un ejemplo y SÍ se versiona)
+.env
+.env.local
+
+# Dependencias copiadas con "go mod vendor"
+/vendor/
+
+# Editores y sistema operativo
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

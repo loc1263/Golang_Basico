@@ -1,0 +1,95 @@
+# Configuración de golangci-lint (formato v2) para TODO el proyecto.
+# Uso desde la raíz:  golangci-lint run ./...
+#
+# Es un proyecto DIDÁCTICO: algunos ejemplos muestran a propósito formas
+# "no ideales" para compararlas con la correcta. Por eso se desactivan
+# algunas reglas, y cada exclusión explica su motivo.
+# (El tema 52 tiene su propia configuración más estricta, pensada para un
+# proyecto real: 52-ci-cd/.golangci.yml.)
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # "standard" = errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
+  enable:
+    - bodyclose     # olvidar resp.Body.Close() en clientes HTTP
+    - errorlint     # usar errors.Is/As en vez de == o aserciones sobre errores
+    - gocritic      # verificaciones de estilo y posibles bugs
+    - gosec         # problemas de seguridad
+    - nilerr        # devolver nil cuando había un error
+    - unconvert     # conversiones de tipo innecesarias
+    - usestdlibvars # usar http.MethodGet, http.StatusOK, etc.
+  # misspell NO se activa: compara contra un diccionario en inglés y el
+  # proyecto está escrito en español (todo serían falsos positivos).
+
+  settings:
+    errcheck:
+      exclude-functions:
+        # Escribir la respuesta de un handler HTTP: si falla, la conexión ya
+        # está rota y no hay a quién informarle. Es la práctica habitual.
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*encoding/json.Encoder).Encode
+        - io.Copy
+        # "defer tx.Rollback()" es el patrón idiomático: después de un Commit
+        # exitoso devuelve sql.ErrTxDone, que se ignora a propósito (tema 31)
+        - (*database/sql.Tx).Rollback
+        # Configuración de ejemplo en el tema 36
+        - os.Setenv
+        - os.Unsetenv
+    gocritic:
+      disabled-checks:
+        # log.Fatal omite los defer pendientes. En estos programas de ejemplo
+        # termina el proceso y el sistema operativo libera los recursos; en
+        # un servicio real conviene el patrón main() -> run() error.
+        - exitAfterDefer
+        # El tema 2 enseña if/else if/else antes que switch a propósito
+        - ifElseChain
+    gosec:
+      excludes:
+        - G104 # errores sin revisar: ya lo cubre errcheck (con sus exclusiones)
+        - G304 # abrir archivos con ruta variable: es lo que hacen las CLIs de ejemplo
+        - G306 # WriteFile con 0644: permisos normales para archivos no sensibles
+        - G404 # math/rand para simulaciones y jitter, no para seguridad (ver tema 44)
+        - G704 # "SSRF": los ejemplos solo llaman a servidores locales de prueba
+        - G706 # "log injection": los datos registrados los define el propio programa
+        - G705 # "XSS": mitigado con Content-Type text/plain, que el análisis no reconoce
+    staticcheck:
+      checks:
+        - all
+        - -ST1000 # comentario de paquete: los temas documentan en el encabezado de main.go
+        - -ST1003 # nombres en español sin siglas estilo Go (Id, Url...): se permite
+        - -ST1020 # formato de comentarios de exportados: código didáctico
+        - -ST1021
+        - -ST1022
+        - -ST1023 # el tema 1 muestra a propósito "var x int = 30" con tipo explícito
+        - -QF1011 # (misma regla, en su versión de "sugerencia rápida")
+        - -QF1006 # el tema 3 muestra a propósito un for infinito con break
+
+  exclusions:
+    presets:
+      - std-error-handling # Close(), Flush(), etc. sin revisar en defer
+    rules:
+      # Tests: se permite ignorar errores al preparar datos de prueba
+      - path: _test\.go
+        linters: [errcheck, gosec]
+      # Código generado (protobuf, stringer, generador propio)
+      - path: (catalogopb/|_string\.go|_gen\.go)
+        linters: [all]
+      # El tema 12 usa %v a propósito para mostrar la diferencia con %w
+      - path: 12-errores/
+        text: non-wrapping format verb
+        linters: [errorlint]
+      # WebSockets (tema 45): los errores de SetDeadline/WriteMessage se
+      # detectan en la siguiente lectura o escritura, que sí se revisa
+      - path: 45-websockets/
+        linters: [errcheck, bodyclose]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

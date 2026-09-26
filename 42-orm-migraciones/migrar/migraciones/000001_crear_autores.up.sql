@@ -1,0 +1,4 @@
+CREATE TABLE autores (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL
+);

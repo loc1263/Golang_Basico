@@ -1,0 +1,35 @@
+# Tema 51: docker compose para levantar el servicio (y, en proyectos reales,
+# sus dependencias: base de datos, cache, etc.).
+# Uso desde la raíz del proyecto:
+#   docker compose -f 51-docker/compose.yaml up --build
+#   docker compose -f 51-docker/compose.yaml down
+services:
+  servicio:
+    build:
+      context: ..                    # raíz del proyecto (donde está go.mod)
+      dockerfile: 51-docker/Dockerfile
+      args:
+        VERSION: "1.0-compose"
+    image: curso-go/servicio:compose
+    ports:
+      - "8084:8080"                  # host:contenedor
+    environment:
+      APP_MENSAJE: "hola desde docker compose"
+    restart: unless-stopped
+    # Límites de recursos. Desde Go 1.25 el runtime lee el límite de CPU del
+    # contenedor y ajusta GOMAXPROCS (cuántos hilos ejecutan código Go a la
+    # vez) automáticamente. Para la memoria se puede fijar la variable
+    # GOMEMLIMIT (p. ej. 100MiB) un poco por debajo del límite del contenedor.
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 128M
+
+  # Ejemplo de dependencia típica (comentado para no descargar la imagen):
+  # postgres:
+  #   image: postgres:17-alpine
+  #   environment:
+  #     POSTGRES_PASSWORD: ejemplo
+  #   healthcheck:
+  #     test: ["CMD", "pg_isready"]

@@ -1,0 +1,61 @@
+// Definición del servicio para el tema 43.
+// A partir de este archivo protoc (o buf) genera el código Go en ../catalogopb.
+syntax = "proto3";
+
+package catalogo.v1;
+
+// Ruta de import del paquete Go generado (módulo + carpeta)
+option go_package = "golang-basico/43-grpc/catalogopb";
+
+// Cada campo tiene un NÚMERO único: es lo que viaja en el binario, no el
+// nombre. Nunca reutilices ni cambies el número de un campo ya publicado.
+message Producto {
+  int32  id        = 1;
+  string nombre    = 2;
+  double precio    = 3;
+  repeated string etiquetas = 4; // repeated = lista
+  Categoria categoria = 5;
+}
+
+enum Categoria {
+  CATEGORIA_SIN_ESPECIFICAR = 0; // proto3: el primer valor debe ser 0
+  CATEGORIA_LIBROS          = 1;
+  CATEGORIA_ELECTRONICA     = 2;
+}
+
+message ObtenerProductoRequest {
+  int32 id = 1;
+}
+
+message ListarProductosRequest {
+  double precio_maximo = 1;
+}
+
+message CrearProductoRequest {
+  string nombre    = 1;
+  double precio    = 2;
+  repeated string etiquetas = 3;
+  Categoria categoria = 4;
+}
+
+message ResumenCompra {
+  int32  cantidad = 1;
+  double total    = 2;
+}
+
+message ItemCompra {
+  int32 producto_id = 1;
+  int32 unidades    = 2;
+}
+
+service Catalogo {
+  // Unario: un request, una respuesta (como una función normal)
+  rpc ObtenerProducto(ObtenerProductoRequest) returns (Producto);
+  rpc CrearProducto(CrearProductoRequest) returns (Producto);
+
+  // Streaming del servidor: un request, muchas respuestas
+  rpc ListarProductos(ListarProductosRequest) returns (stream Producto);
+
+  // Streaming del cliente: muchos requests, una respuesta
+  rpc Comprar(stream ItemCompra) returns (ResumenCompra);
+}

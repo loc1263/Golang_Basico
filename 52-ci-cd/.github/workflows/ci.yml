@@ -1,0 +1,112 @@
+# Tema 52: pipeline de Integración Continua con GitHub Actions.
+# Para que GitHub lo ejecute, este archivo debe estar en .github/workflows/
+# en la RAÍZ del repositorio.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancelar ejecuciones anteriores del mismo PR/rama cuando llega un push nuevo
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # principio de mínimo privilegio para el token del workflow
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod # misma versión de Go que el proyecto
+
+      - name: Verificar formato (gofmt)
+        run: |
+          sin_formato=$(gofmt -l .)
+          if [ -n "$sin_formato" ]; then
+            echo "Archivos sin formatear:"; echo "$sin_formato"; exit 1
+          fi
+
+      - name: Verificar go.mod/go.sum ordenados
+        run: go mod tidy -diff
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.14 # fijar la versión evita que el CI cambie solo; actualízala a mano
+          args: --config=52-ci-cd/.golangci.yml ./52-ci-cd/...
+
+  test:
+    # Matriz: el mismo job en varios sistemas operativos
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod # setup-go también cachea módulos y el build
+
+      - name: Tests con detector de carreras y cobertura
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Resumen de cobertura
+        if: matrix.os == 'ubuntu-latest'
+        run: go tool cover -func=coverage.out | tail -1
+
+      - name: Subir reporte de cobertura
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: cobertura
+          path: coverage.out
+
+  seguridad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      # Busca vulnerabilidades conocidas en las dependencias QUE EL CÓDIGO USA
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  build:
+    needs: [lint, test] # solo si lint y test pasaron
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: windows, goarch: amd64, ext: .exe }
+          - { goos: darwin, goarch: arm64 }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Compilación cruzada
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          go build -trimpath \
+            -ldflags "-s -w -X main.version=${GITHUB_SHA::7} -X main.commit=${GITHUB_SHA}" \
+            -o dist/contador-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./52-ci-cd
+      - uses: actions/upload-artifact@v7
+        with:
+          name: contador-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/

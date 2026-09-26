@@ -1,0 +1,43 @@
+# Tema 52: configuración de GoReleaser v2 (https://goreleaser.com).
+# Probar localmente sin publicar nada (desde la raíz del proyecto):
+#   go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean --config 52-ci-cd/.goreleaser.yaml
+# Los binarios quedan en ./dist
+version: 2
+
+project_name: contador
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: contador
+    main: ./52-ci-cd
+    binary: contador
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, windows, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    # Plantillas: GoReleaser completa la versión (del tag), el commit y la fecha
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.fecha={{.Date}}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip] # los usuarios de Windows esperan .zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt # para que los usuarios verifiquen las descargas
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

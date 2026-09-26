@@ -1,0 +1,54 @@
+# Tema 52: configuración de golangci-lint (formato v2).
+# golangci-lint ejecuta muchos linters en paralelo con una sola herramienta.
+# Instalación: https://golangci-lint.run/welcome/install/
+# Uso desde la raíz:  golangci-lint run --config=52-ci-cd/.golangci.yml ./52-ci-cd/...
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # "standard" = errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
+  enable:
+    - bodyclose     # olvidar resp.Body.Close() en clientes HTTP
+    - errorlint     # usar errors.Is/As en vez de == o aserciones de tipo sobre errores
+    - gocritic      # muchas verificaciones de estilo y posibles bugs
+    - gosec         # problemas de seguridad (permisos, SQL armado a mano, rand débil...)
+    # misspell (ortografía) solo sirve si el código está en inglés; aquí
+    # todo está en español y daría falsos positivos. En un proyecto en
+    # inglés conviene activarlo.
+    - nilerr        # devolver nil cuando había un error
+    - revive        # sucesor de golint: convenciones de nombres y docs
+    - unconvert     # conversiones de tipo innecesarias
+    - usestdlibvars # usar http.MethodGet, http.StatusOK, etc.
+
+  settings:
+    errcheck:
+      # No exigir revisar el error de fmt.Fprint* en un CLI
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+    gosec:
+      excludes:
+        - G304 # abrir archivos con ruta variable: es justo lo que hace el CLI
+        - G104 # errores sin revisar: ya lo cubre errcheck, con reglas más finas
+    revive:
+      rules:
+        - name: exported
+          disabled: true # no exigir comentarios en todo lo exportado (código didáctico)
+
+  exclusions:
+    # Excluir reglas conocidas como ruidosas para comentarios y manejo de errores estándar
+    presets:
+      - comments
+      - std-error-handling
+    rules:
+      # En tests se permite ignorar algunos errores (os.WriteFile de fixtures)
+      - path: _test\.go
+        linters: [errcheck, gosec]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

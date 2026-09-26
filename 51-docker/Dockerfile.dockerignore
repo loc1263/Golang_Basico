@@ -1,0 +1,20 @@
+# Archivos que NO se envían al contexto de build de Docker.
+# Con BuildKit, un archivo <Dockerfile>.dockerignore junto al Dockerfile tiene
+# prioridad sobre el .dockerignore de la raíz del contexto.
+# Excluir cosas acelera el build y evita filtrar secretos en la imagen.
+
+.git
+.github
+.vscode
+.idea
+*.md
+
+# Binarios, perfiles y datos generados por otros temas
+*.exe
+*.prof
+*.db
+*.json
+
+# Secretos y configuración local
+*.env
+.env*
